@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>상세 평가 페이지</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        body { font-family: 'Noto Sans KR', sans-serif; }
+        .prompt-box { background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 1rem; border-radius: 0.5rem; white-space: pre-wrap; font-family: monospace; }
+        .star-rating input[type="radio"] { display: none; }
+        .star-rating label { font-size: 2rem; color: #d1d5db; cursor: pointer; transition: color 0.2s; }
+        .star-rating input[type="radio"]:checked ~ label, .star-rating label:hover, .star-rating label:hover ~ label { color: #f59e0b; }
+    </style>
+</head>
+<body class="bg-slate-100">
+<div class="container mx-auto max-w-6xl p-4 sm:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <!-- Left: Inference Details -->
+    <div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-lg space-y-6">
+        <div class="border-b pb-4">
+            <a href="{% url 'inference_list' %}" class="text-blue-600 hover:underline mb-4 inline-block"><i class="fas fa-arrow-left mr-2"></i>목록으로 돌아가기</a>
+            <h1 class="text-3xl font-bold text-slate-800">추론 결과 상세</h1>
+            <p class="text-sm text-slate-500 mt-1">ID: {{ inference_id }}</p>
+        </div>
+
+        <div>
+            <h2 class="text-xl font-semibold text-slate-700 mb-2">System Prompt</h2>
+            <div class="prompt-box">{{ inference.systemPrompt|default:"(없음)" }}</div>
+        </div>
+
+        <div>
+            <h2 class="text-xl font-semibold text-slate-700 mb-2">User Inputs</h2>
+            <div class="space-y-2">
+            <!-- 모델 관계를 통해 inputs를 가져오도록 수정: inference.inputs.all -->
+            {% for input in inference.inputs.all %}
+                <div class="prompt-box">
+                    <span class="font-bold text-sm text-slate-500">[{{ input.order }}] {{ input.input_type }}:</span>
+                    
+                    {# 이미지 타입이고 이미지 파일이 존재할 경우, URL을 통해 화면에 표시 #}
+                    {% if input.input_type == 'image' and input.image %}
+                        <img src="{{ input.image.url }}" alt="User uploaded image {{ input.order }}" class="my-2 max-w-sm rounded-md shadow-md">
+                    {% endif %}
+
+                    {# 텍스트 내용 또는 이미지의 부연 설명 표시 #}
+                    {{ input.content }}
+                </div>
+            {% endfor %}
+            </div>
+        </div>
+        
+        <div>
+            <h2 class="text-xl font-semibold text-slate-700 mb-2">Gemini Result</h2>
+            <div class="prompt-box bg-blue-50 border-blue-200">{{ inference.geminiResult }}</div>
+        </div>
+    </div>
+
+    <!-- Right: Evaluation Section -->
+    <div class="lg:col-span-1 space-y-6">
+        <div class="bg-white p-6 rounded-2xl shadow-lg">
+            <h2 class="text-xl font-semibold mb-4 border-b pb-3">평가 현황</h2>
+            <div class="space-y-3 text-sm">
+                <div class="flex justify-between"><span>총 평가자 수:</span> <span class="font-bold">{{ eval_count }} 명</span></div>
+                <div class="flex justify-between"><span>Agreement 비율:</span> <span class="font-bold">{{ agreement_rate }} %</span></div>
+                <div class="flex justify-between"><span>평균 Quality:</span> <span class="font-bold">{{ avg_quality }} / 5.0</span></div>
+            </div>
+        </div>
+        
+        <div class="bg-white p-6 rounded-2xl shadow-lg">
+            <h2 class="text-xl font-semibold mb-4 border-b pb-3">나의 평가</h2>
+            {% if user.is_staff %}
+                <div class="text-center p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p class="text-sm text-yellow-800">관리자는 평가할 수 없습니다.</p>
+                </div>
+            {% elif user_has_evaluated %}
+                <div class="text-center p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <p class="text-sm text-green-800">이미 이 항목을 평가했습니다.</p>
+                </div>
+            {% else %}
+            <form action="{% url 'submit_evaluation' inference_id=inference_id %}" method="POST">
+                {% csrf_token %}
+                <div class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-2">Agreement (결과가 지시를 잘 따랐나요?)</label>
+                        <div class="flex space-x-2">
+                            <button type="button" data-value="true" class="eval-btn agreement-btn flex-1 p-3 border rounded-lg">O</button>
+                            <button type="button" data-value="false" class="eval-btn agreement-btn flex-1 p-3 border rounded-lg">X</button>
+                        </div>
+                        <input type="hidden" name="agreement" id="agreement-input" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-2">Quality (결과의 전반적인 품질)</label>
+                        <div class="star-rating flex flex-row-reverse justify-center items-center">
+                            <input type="radio" id="star5" name="quality" value="5" required><label for="star5" title="5점"><i class="fas fa-star"></i></label>
+                            <input type="radio" id="star4" name="quality" value="4"><label for="star4" title="4점"><i class="fas fa-star"></i></label>
+                            <input type="radio" id="star3" name="quality" value="3"><label for="star3" title="3점"><i class="fas fa-star"></i></label>
+                            <input type="radio" id="star2" name="quality" value="2"><label for="star2" title="2점"><i class="fas fa-star"></i></label>
+                            <input type="radio" id="star1" name="quality" value="1"><label for="star1" title="1점"><i class="fas fa-star"></i></label>
+                        </div>
+                    </div>
+                    <div>
+                        <label for="comment" class="block text-sm font-medium text-slate-600 mb-1">코멘트 (선택)</label>
+                        <textarea name="comment" id="comment" rows="3" class="w-full p-2 border border-slate-300 rounded-lg"></textarea>
+                    </div>
+                    <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700">평가 제출</button>
+                </div>
+            </form>
+            <script>
+                const agreementBtns = document.querySelectorAll('.agreement-btn');
+                const agreementInput = document.getElementById('agreement-input');
+                agreementBtns.forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        agreementBtns.forEach(b => b.classList.remove('bg-blue-500', 'text-white'));
+                        btn.classList.add('bg-blue-500', 'text-white');
+                        agreementInput.value = btn.dataset.value;
+                    });
+                });
+            </script>
+            {% endif %}
+        </div>
+    </div>
+</div>
+</body>
+</html>

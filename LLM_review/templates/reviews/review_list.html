@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ current_llm }} 리뷰 - LLM 리뷰 허브</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        body { font-family: 'Noto Sans KR', sans-serif; }
+        .star-rating input[type="radio"] { display: none; }
+        .star-rating label { font-size: 2rem; color: #d1d5db; cursor: pointer; transition: color 0.2s; }
+        .star-rating input[type="radio"]:checked ~ label, .star-rating label:hover, .star-rating label:hover ~ label { color: #f59e0b; }
+        .tab-active { border-color: #3b82f6; background-color: #eff6ff; color: #2563eb; font-weight: 600; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+    <div class="container mx-auto max-w-4xl p-4 sm:p-6 lg:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-blue-600">LLM 리뷰 허브</h1>
+            <p class="text-slate-500 mt-2">Django와 Firebase로 구축된 서비스입니다.</p>
+        </header>
+
+        <main class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <section class="lg:col-span-1 bg-white p-6 rounded-2xl shadow-lg">
+                <h2 class="text-2xl font-semibold mb-4 border-b pb-3">리뷰 작성하기</h2>
+                <form id="review-form" action="{% url 'add_review' %}" method="POST">
+                    {% csrf_token %}
+                    <div class="mb-4">
+                        <label for="llm-select" class="block text-sm font-medium text-slate-600 mb-1">모델 선택</label>
+                        <select id="llm-select" name="llm-name" class="w-full p-3 border border-slate-300 rounded-lg">
+                            {% for model in llm_models %}
+                                <option value="{{ model }}" {% if model == current_llm %}selected{% endif %}>{{ model }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label for="username" class="block text-sm font-medium text-slate-600 mb-1">닉네임</label>
+                        <input type="text" id="username" name="username" class="w-full p-3 border border-slate-300 rounded-lg" placeholder="기본: 익명">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-slate-600 mb-2">별점</label>
+                        <div id="star-rating" class="star-rating flex flex-row-reverse justify-end items-center">
+                            <input type="radio" id="star5" name="rating" value="5" required><label for="star5" title="5점"><i class="fas fa-star"></i></label>
+                            <input type="radio" id="star4" name="rating" value="4"><label for="star4" title="4점"><i class="fas fa-star"></i></label>
+                            <input type="radio" id="star3" name="rating" value="3"><label for="star3" title="3점"><i class="fas fa-star"></i></label>
+                            <input type="radio" id="star2" name="rating" value="2"><label for="star2" title="2점"><i class="fas fa-star"></i></label>
+                            <input type="radio" id="star1" name="rating" value="1"><label for="star1" title="1점"><i class="fas fa-star"></i></label>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label for="review-text" class="block text-sm font-medium text-slate-600 mb-1">리뷰 내용</label>
+                        <textarea id="review-text" name="review-text" rows="5" class="w-full p-3 border border-slate-300 rounded-lg" placeholder="모델 사용 경험을 알려주세요." required></textarea>
+                    </div>
+                    <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700">리뷰 제출</button>
+                </form>
+            </section>
+
+            <section class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-lg">
+                <div class="mb-4">
+                    <div id="llm-tabs" class="flex space-x-2 border-b border-slate-200">
+                        {% for model in llm_models %}
+                            <a href="?llm={{ model }}" class="py-2 px-4 border-b-2 {% if model == current_llm %}tab-active{% else %}border-transparent hover:border-blue-500{% endif %}">{{ model }}</a>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div id="reviews-list" class="space-y-4 h-[600px] overflow-y-auto pr-2">
+                    {% for review in reviews %}
+                        <div class="p-5 border border-slate-200 rounded-xl bg-slate-50/50">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="font-bold text-lg">{{ review.userName }}</p>
+                                    <p class="text-xs text-slate-400">{{ review.createdAt }}</p>
+                                </div>
+                                <div class="text-amber-500 text-lg flex items-center">
+                                    {% for i in "12345" %}{% if i|add:0 <= review.rating %}<i class="fas fa-star"></i>{% else %}<i class="far fa-star"></i>{% endif %}{% endfor %}
+                                    <span class="ml-2 text-sm font-bold">{{ review.rating }}.0</span>
+                                </div>
+                            </div>
+                            <p class="mt-3 text-slate-700 whitespace-pre-wrap">{{ review.reviewText }}</p>
+                        </div>
+                    {% empty %}
+                        <div class="text-center py-16 text-slate-500">
+                            <p>아직 등록된 리뷰가 없습니다.</p>
+                        </div>
+                    {% endfor %}
+                </div>
+            </section>
+        </main>
+    </div>
+</body>
+</html>
