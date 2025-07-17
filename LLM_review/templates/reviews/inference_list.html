@@ -5,8 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Inference List</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.1.0/github-markdown.min.css">
     <style>
         body { font-family: 'Noto Sans KR', sans-serif; }
         .prompt-box { background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 0.5rem; border-radius: 0.5rem; white-space: pre-wrap; }
@@ -21,7 +23,7 @@
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800">
-<div class="container mx-auto max-w-6xl p-4 sm:p-6 lg:p-8">
+<div class="w-full px-4 sm:px-6 lg:px-8">
     <header class="flex justify-between items-center mb-8">
         <h1 class="text-4xl font-bold text-blue-600">Inference List</h1>
         {% if user.is_authenticated %}
@@ -35,21 +37,30 @@
     </header>
 
     <main class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div class="md:col-span-2 space-y-6">
+        <!-- Left: Images, System Prompt, User Inputs -->
+        <div class="space-y-6">
+            <div id="detail-left" class="bg-white p-6 rounded-2xl shadow">
+                <p class="text-gray-500 text-center">항목을 선택하면 세부 정보가 표시됩니다.</p>
+            </div>
             <div id="eval-container" class="bg-white p-4 rounded-2xl shadow">
                 <p class="text-gray-500 text-center">우측 목록에서 항목을 선택하세요.</p>
             </div>
-            <div id="detail-container" class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-6 rounded-2xl shadow">
-                <p class="text-gray-500 text-center md:col-span-2">항목을 선택하면 세부 정보가 표시됩니다.</p>
-            </div>
         </div>
-        <div class="md:col-span-1">
+
+        <!-- Middle: Gemini Result -->
+        <div id="detail-result" class="bg-white p-6 rounded-2xl shadow">
+            <p class="text-gray-500 text-center">항목을 선택하면 결과가 표시됩니다.</p>
+        </div>
+
+        <!-- Right: Inference List -->
+        <div>
             <ul id="inference-list" class="space-y-2">
                 {% for inference in inferences %}
                 <li class="flex items-center space-x-2">
                     <button data-id="{{ inference.id }}" class="inference-item flex-1 text-left p-3 bg-white rounded-lg shadow hover:bg-blue-50">
                         <span class="font-semibold">#{{ inference.id }}</span>
                         <span class="ml-2 text-sm text-gray-500">{{ inference.created_at|date:"m/d H:i" }}</span>
+                        <span class="ml-2 text-xs text-gray-400">{{ inference.requester.username }}</span>
                     </button>
                     <a href="{% url 'reviews:evaluation_page' inference.id %}" class="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm whitespace-nowrap hover:bg-blue-700">평가</a>
                 </li>
@@ -93,7 +104,8 @@ document.querySelectorAll('.inference-item').forEach(btn => {
 });
 
 function showDetail(data) {
-    const detail = document.getElementById('detail-container');
+    const detailLeft = document.getElementById('detail-left');
+    const detailResult = document.getElementById('detail-result');
     const evalBox = document.getElementById('eval-container');
     let imgs = '';
     let texts = '';
@@ -103,6 +115,9 @@ function showDetail(data) {
         }
         if (i.input_type === 'text') {
             texts += `<div class="prompt-box mb-2"><span class="text-sm text-slate-500 font-bold">[${i.order}]</span> ${i.content}</div>`;
+        }
+        if (i.input_type === 'image' && i.content) {
+            texts += `<div class="prompt-box mb-2"><span class="text-sm text-slate-500 font-bold">[${i.order}] (image)</span> ${i.content}</div>`;
         }
     });
 
@@ -144,25 +159,43 @@ function showDetail(data) {
         </div>
     `;
 
-    detail.innerHTML = `
-        <div>
-            ${imgs ? `<div id="image-gallery" class="mb-4 flex flex-wrap">${imgs}</div>` : ''}
-            <div class="space-y-4">
-                <div>
-                    <h3 class="font-semibold mb-1">System Prompt</h3>
-                    <div class="prompt-box">${data.system_prompt || '(없음)'}</div>
-                </div>
-                <div>
-                    <h3 class="font-semibold mb-1">User Inputs</h3>
-                    ${texts || '<p class="text-sm text-gray-500">No inputs.</p>'}
-                </div>
+    detailLeft.innerHTML = `
+        ${imgs ? `<div id="image-gallery" class="mb-4 flex flex-wrap">${imgs}</div>` : ''}
+        <div class="space-y-4">
+            <div>
+                <h3 class="font-semibold mb-1">System Prompt</h3>
+                <div class="prompt-box">${data.system_prompt || '(없음)'}</div>
+            </div>
+            <div>
+                <h3 class="font-semibold mb-1">User Inputs</h3>
+                ${texts || '<p class="text-sm text-gray-500">No inputs.</p>'}
             </div>
         </div>
-        <div>
-            <h3 class="font-semibold mb-1">Gemini Result</h3>
-            <div class="prompt-box bg-blue-50 border-blue-200">${data.gemini_result}</div>
+    `;
+
+    detailResult.innerHTML = `
+        <h3 class="font-semibold mb-1">Gemini Result</h3>
+        <div class="prompt-box bg-blue-50 border-blue-200">
+            <div id="gemini-result" class="markdown-body max-h-64 overflow-hidden">
+                ${marked.parse(data.gemini_result)}
+            </div>
+            <button id="toggle-result" class="mt-2 text-blue-600 text-sm">펼치기</button>
         </div>
     `;
+
+    const toggleBtn = document.getElementById('toggle-result');
+    const resultDiv = document.getElementById('gemini-result');
+    let collapsed = true;
+    toggleBtn.addEventListener('click', () => {
+        collapsed = !collapsed;
+        if (collapsed) {
+            resultDiv.classList.add('max-h-64', 'overflow-hidden');
+            toggleBtn.textContent = '펼치기';
+        } else {
+            resultDiv.classList.remove('max-h-64', 'overflow-hidden');
+            toggleBtn.textContent = '접기';
+        }
+    });
 
     document.querySelectorAll('#image-gallery img.thumbnail').forEach(img => {
         img.addEventListener('click', () => showImageModal(img.dataset.full));
@@ -237,6 +270,20 @@ imageModal.addEventListener('mousemove', e => {
 });
 
 window.addEventListener('mouseup', () => {
+    if (dragging) {
+        dragging = false;
+        modalImg.style.cursor = 'grab';
+    }
+});
+
+imageModal.addEventListener('mouseup', () => {
+    if (dragging) {
+        dragging = false;
+        modalImg.style.cursor = 'grab';
+    }
+});
+
+modalImg.addEventListener('mouseleave', () => {
     if (dragging) {
         dragging = false;
         modalImg.style.cursor = 'grab';
