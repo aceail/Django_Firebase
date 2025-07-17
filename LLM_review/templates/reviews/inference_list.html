@@ -26,22 +26,23 @@
     </header>
 
     <main class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div id="detail-container" class="md:col-span-2 bg-white p-6 rounded-2xl shadow">
+            <p class="text-gray-500 text-center">우측 목록에서 항목을 선택하세요.</p>
+        </div>
         <div class="md:col-span-1">
             <ul id="inference-list" class="space-y-2">
                 {% for inference in inferences %}
-                <li>
-                    <button data-id="{{ inference.id }}" class="inference-item w-full text-left p-3 bg-white rounded-lg shadow hover:bg-blue-50">
+                <li class="flex items-center space-x-2">
+                    <button data-id="{{ inference.id }}" class="inference-item flex-1 text-left p-3 bg-white rounded-lg shadow hover:bg-blue-50">
                         <span class="font-semibold">#{{ inference.id }}</span>
                         <span class="ml-2 text-sm text-gray-500">{{ inference.created_at|date:"m/d H:i" }}</span>
                     </button>
+                    <a href="{% url 'reviews:evaluation_page' inference.id %}" class="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm whitespace-nowrap hover:bg-blue-700">평가</a>
                 </li>
                 {% empty %}
                 <li class="text-center text-gray-500">No inferences found.</li>
                 {% endfor %}
             </ul>
-        </div>
-        <div id="detail-container" class="md:col-span-2 bg-white p-6 rounded-2xl shadow">
-            <p class="text-gray-500 text-center">좌측 목록에서 항목을 선택하세요.</p>
         </div>
     </main>
 </div>
