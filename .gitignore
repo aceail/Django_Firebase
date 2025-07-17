@@ -1,3 +1,4 @@
 *.pyc
 *.sqlite3
 LLM_review/.env
+LLM_review/media/inference_images
