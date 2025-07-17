@@ -6,7 +6,7 @@ from django.conf import settings # settings import 추가
 from django.conf.urls.static import static # static import 추가
 
 urlpatterns = [
-    path('', include('reviews.urls')),
+    path('', include(('reviews.urls', 'reviews'), namespace='reviews')),
     path('admin/', admin.site.urls),
     path('accounts/', include('django.contrib.auth.urls')),
 ]
