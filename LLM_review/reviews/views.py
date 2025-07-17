@@ -175,14 +175,12 @@ def evaluation_page(request, inference_id):
     inference = get_object_or_404(Inference, pk=inference_id, requester=request.user)
 
     if request.method == "POST":
-        score = request.POST.get("score")
-        comment = request.POST.get("comment")
-
         Evaluation.objects.create(
             inference=inference,
             evaluator=request.user,
-            score=score,
-            comment=comment,
+            agreement=request.POST.get("agreement") == "true",
+            quality=request.POST.get("quality"),
+            comment=request.POST.get("comment", ""),
         )
         return redirect("reviews:inference_list")
 
@@ -221,7 +219,8 @@ def submit_evaluation(request, inference_id):
         Evaluation.objects.create(
             inference=inference,
             evaluator=request.user,
-            score=request.POST.get("score"),
+            agreement=request.POST.get("agreement") == "true",
+            quality=request.POST.get("quality"),
             comment=request.POST.get("comment", ""),
         )
 

@@ -9,6 +9,14 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         body { font-family: 'Noto Sans KR', sans-serif; }
+        .prompt-box { background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 0.5rem; border-radius: 0.5rem; white-space: pre-wrap; }
+        .star-rating input[type="radio"] { display: none; }
+        .star-rating label { font-size: 1.5rem; color: #d1d5db; cursor: pointer; transition: color 0.2s; }
+        .star-rating input[type="radio"]:checked ~ label,
+        .star-rating label:hover,
+        .star-rating label:hover ~ label { color: #f59e0b; }
+        .thumbnail { max-height: 6rem; cursor: pointer; }
+        #image-modal { display:none; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800">
@@ -26,6 +34,9 @@
     </header>
 
     <main class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div id="detail-container" class="md:col-span-2 bg-white p-6 rounded-2xl shadow">
+            <p class="text-gray-500 text-center">우측 목록에서 항목을 선택하세요.</p>
+        </div>
         <div class="md:col-span-1">
             <ul id="inference-list" class="space-y-2">
                 {% for inference in inferences %}
@@ -40,14 +51,30 @@
                 {% endfor %}
             </ul>
         </div>
-        <div id="detail-container" class="md:col-span-2 bg-white p-6 rounded-2xl shadow">
-            <p class="text-gray-500 text-center">좌측 목록에서 항목을 선택하세요.</p>
-        </div>
     </main>
+</div>
+<div id="image-modal" class="fixed inset-0 bg-black bg-opacity-75 items-center justify-center z-50" style="display:none;">
+    <img src="" class="max-h-full">
 </div>
 <script>
 const detailUrlTemplate = "{% url 'reviews:inference_detail' 0 %}";
-const evalUrlTemplate = "{% url 'reviews:evaluation_page' 0 %}";
+const evalSubmitUrlTemplate = "{% url 'reviews:submit_evaluation' 0 %}";
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+const csrftoken = getCookie('csrftoken');
 
 document.querySelectorAll('.inference-item').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -60,33 +87,113 @@ document.querySelectorAll('.inference-item').forEach(btn => {
 
 function showDetail(data) {
     const container = document.getElementById('detail-container');
-    let inputsHtml = '';
+    let imgs = '';
+    let texts = '';
     data.inputs.forEach(i => {
+        if (i.image_url) {
+            imgs += `<img src="${i.image_url}" data-full="${i.image_url}" class="thumbnail m-1 rounded border">`;
+        }
         if (i.input_type === 'text') {
-            inputsHtml += `<div class="mb-2 p-2 border rounded"><span class="text-sm text-slate-500">[${i.order}]</span> ${i.content}</div>`;
-        } else if (i.image_url) {
-            inputsHtml += `<div class="mb-2 p-2 border rounded"><span class="text-sm text-slate-500">[${i.order}] image</span><br><img src="${i.image_url}" class="my-2 max-w-xs rounded"><p>${i.content}</p></div>`;
+            texts += `<div class="prompt-box mb-2"><span class="text-sm text-slate-500 font-bold">[${i.order}]</span> ${i.content}</div>`;
         }
     });
+
+    const evalForm = data.user_has_evaluated ?
+        '<div class="p-4 bg-green-50 border border-green-200 rounded text-sm">이미 평가를 제출했습니다.</div>' :
+        `<form id="eval-form" class="space-y-3">
+            <div>
+                <label class="block text-sm font-medium mb-1">Agreement</label>
+                <div class="flex space-x-2">
+                    <button type="button" class="agree-btn flex-1 p-2 border rounded" data-val="true">O</button>
+                    <button type="button" class="agree-btn flex-1 p-2 border rounded" data-val="false">X</button>
+                </div>
+                <input type="hidden" name="agreement" required>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">Quality</label>
+                <div class="star-rating flex flex-row-reverse justify-center">
+                    <input type="radio" id="star5" name="quality" value="5" required><label for="star5"><i class="fas fa-star"></i></label>
+                    <input type="radio" id="star4" name="quality" value="4"><label for="star4"><i class="fas fa-star"></i></label>
+                    <input type="radio" id="star3" name="quality" value="3"><label for="star3"><i class="fas fa-star"></i></label>
+                    <input type="radio" id="star2" name="quality" value="2"><label for="star2"><i class="fas fa-star"></i></label>
+                    <input type="radio" id="star1" name="quality" value="1"><label for="star1"><i class="fas fa-star"></i></label>
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1" for="comment">코멘트 (선택)</label>
+                <textarea id="comment" name="comment" rows="2" class="w-full p-2 border rounded"></textarea>
+            </div>
+            <button type="submit" class="w-full bg-blue-600 text-white rounded py-2 hover:bg-blue-700">평가 제출</button>
+        </form>`;
+
     container.innerHTML = `
         <h2 class="text-2xl font-bold mb-4">Inference #${data.id}</h2>
+        ${imgs ? `<div id="image-gallery" class="mb-4 flex flex-wrap">${imgs}</div>` : ''}
         <div class="space-y-4">
             <div>
                 <h3 class="font-semibold mb-1">System Prompt</h3>
-                <div class="p-2 bg-slate-50 border rounded whitespace-pre-wrap">${data.system_prompt || '(없음)'}</div>
+                <div class="prompt-box">${data.system_prompt || '(없음)'}</div>
             </div>
             <div>
                 <h3 class="font-semibold mb-1">User Inputs</h3>
-                ${inputsHtml || '<p class="text-sm text-gray-500">No inputs.</p>'}
+                ${texts || '<p class="text-sm text-gray-500">No inputs.</p>'}
             </div>
             <div>
                 <h3 class="font-semibold mb-1">Gemini Result</h3>
-                <div class="p-2 bg-blue-50 border-blue-200 border rounded whitespace-pre-wrap">${data.gemini_result}</div>
+                <div class="prompt-box bg-blue-50 border-blue-200">${data.gemini_result}</div>
             </div>
-            <a class="text-blue-600 hover:underline font-medium" href="${evalUrlTemplate.replace('0', data.id)}">평가 페이지로 이동</a>
+        </div>
+        <div class="mt-6">
+            <h3 class="font-semibold mb-1">평가 현황</h3>
+            <div class="text-sm space-y-1 mb-4">
+                <div>총 평가자 수: <strong>${data.eval_count}</strong> 명</div>
+                <div>Agreement 비율: <strong>${data.agreement_rate}%</strong></div>
+                <div>평균 Quality: <strong>${data.avg_quality} / 5.0</strong></div>
+            </div>
+            ${evalForm}
         </div>
     `;
+
+    document.querySelectorAll('#image-gallery img.thumbnail').forEach(img => {
+        img.addEventListener('click', () => showImageModal(img.dataset.full));
+    });
+
+    const form = document.getElementById('eval-form');
+    if (form) {
+        const agreeInput = form.querySelector('input[name="agreement"]');
+        form.querySelectorAll('.agree-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                form.querySelectorAll('.agree-btn').forEach(b => b.classList.remove('bg-blue-500', 'text-white'));
+                btn.classList.add('bg-blue-500', 'text-white');
+                agreeInput.value = btn.dataset.val;
+            });
+        });
+
+        form.addEventListener('submit', e => {
+            e.preventDefault();
+            const fd = new FormData(form);
+            fetch(evalSubmitUrlTemplate.replace('0', data.id), {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrftoken },
+                body: fd
+            }).then(() => {
+                fetch(detailUrlTemplate.replace('0', data.id))
+                    .then(res => res.json())
+                    .then(d => showDetail(d));
+            });
+        });
+    }
 }
+
+function showImageModal(src) {
+    const modal = document.getElementById('image-modal');
+    modal.querySelector('img').src = src;
+    modal.style.display = 'flex';
+}
+
+document.getElementById('image-modal').addEventListener('click', () => {
+    document.getElementById('image-modal').style.display = 'none';
+});
 </script>
 </body>
 </html>
