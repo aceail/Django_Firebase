@@ -5,8 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Inference List</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.1.0/github-markdown.min.css">
     <style>
         body { font-family: 'Noto Sans KR', sans-serif; }
         .prompt-box { background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 0.5rem; border-radius: 0.5rem; white-space: pre-wrap; }
@@ -114,6 +116,9 @@ function showDetail(data) {
         if (i.input_type === 'text') {
             texts += `<div class="prompt-box mb-2"><span class="text-sm text-slate-500 font-bold">[${i.order}]</span> ${i.content}</div>`;
         }
+        if (i.input_type === 'image' && i.content) {
+            texts += `<div class="prompt-box mb-2"><span class="text-sm text-slate-500 font-bold">[${i.order}] (image)</span> ${i.content}</div>`;
+        }
     });
 
     const evalForm = data.user_has_evaluated ?
@@ -165,6 +170,32 @@ function showDetail(data) {
                 <h3 class="font-semibold mb-1">User Inputs</h3>
                 ${texts || '<p class="text-sm text-gray-500">No inputs.</p>'}
             </div>
+        </div>
+    `;
+
+    detailResult.innerHTML = `
+        <h3 class="font-semibold mb-1">Gemini Result</h3>
+        <div class="prompt-box bg-blue-50 border-blue-200">
+            <div id="gemini-result" class="markdown-body max-h-64 overflow-hidden">
+                ${marked.parse(data.gemini_result)}
+            </div>
+            <button id="toggle-result" class="mt-2 text-blue-600 text-sm">펼치기</button>
+        </div>
+    `;
+
+    const toggleBtn = document.getElementById('toggle-result');
+    const resultDiv = document.getElementById('gemini-result');
+    let collapsed = true;
+    toggleBtn.addEventListener('click', () => {
+        collapsed = !collapsed;
+        if (collapsed) {
+            resultDiv.classList.add('max-h-64', 'overflow-hidden');
+            toggleBtn.textContent = '펼치기';
+        } else {
+            resultDiv.classList.remove('max-h-64', 'overflow-hidden');
+            toggleBtn.textContent = '접기';
+        }
+    });
         </div>
     `;
 
