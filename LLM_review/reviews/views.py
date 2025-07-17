@@ -88,7 +88,7 @@ def run_inference(request):
                 prompt_parts.append(item["content"])
 
     try:
-        model = genai.GenerativeModel("gemini-1.5-pro-latest")
+        model = genai.GenerativeModel("gemini-2.5-pro")
         response = model.generate_content(prompt_parts, stream=False)
 
         inference.gemini_result = response.text
