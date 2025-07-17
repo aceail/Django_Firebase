@@ -25,8 +25,8 @@ except AttributeError:
 def root_view(request):
     """사용자 유형에 따른 초기 리다이렉션"""
     if request.user.is_staff:
-        return redirect("inference_page")
-    return redirect("inference_list")
+        return redirect("reviews:inference_page")
+    return redirect("reviews:inference_list")
 
 @login_required
 def inference_page(request):
@@ -38,7 +38,7 @@ def run_inference(request):
     """멀티모달 입력을 받아 추론을 실행하고 결과를 저장"""
     if request.method != "POST" or not request.user.is_staff:
         messages.error(request, "잘못된 접근입니다.")
-        return redirect("inference_page")
+        return redirect("reviews:inference_page")
 
     system_prompt = request.POST.get("system_prompt", "")
     parameters = {
@@ -60,7 +60,7 @@ def run_inference(request):
 
     if not input_items:
         messages.error(request, "텍스트나 이미지를 하나 이상 입력해야 합니다.")
-        return redirect("inference_page")
+        return redirect("reviews:inference_page")
 
     input_items.sort(key=lambda x: x["order"])
 
@@ -83,7 +83,7 @@ def run_inference(request):
                 logger.error(f"Error processing image file {item['file'].name}: {e}")
                 inference.delete()
                 messages.error(request, f"이미지 처리 중 오류가 발생했습니다: {item['file'].name}")
-                return redirect("inference_page")
+                return redirect("reviews:inference_page")
             if item["content"]:
                 prompt_parts.append(item["content"])
 
@@ -104,17 +104,17 @@ def run_inference(request):
             )
 
         messages.success(request, "추론이 완료되었습니다.")
-        return redirect("inference_list")
+            return redirect("reviews:inference_list")
 
     except genai.types.generation_types.StopCandidateException:
         inference.delete()
         messages.error(request, "생성된 콘텐츠가 안전하지 않아 요청이 중단되었습니다.")
-        return redirect("inference_page")
+        return redirect("reviews:inference_page")
     except Exception as e:
         logger.error(f"Unexpected error during inference for user {request.user.username}: {e}", exc_info=True)
         inference.delete()
         messages.error(request, "알 수 없는 오류가 발생하여 추론에 실패했습니다.")
-        return redirect("inference_page")
+        return redirect("reviews:inference_page")
 
 
 @login_required
@@ -157,4 +157,4 @@ def submit_evaluation(request, inference_id):
             comment=request.POST.get("comment", ""),
         )
 
-    return redirect("evaluation_page", inference_id=inference.id)
+    return redirect("reviews:evaluation_page", inference_id=inference.id)
