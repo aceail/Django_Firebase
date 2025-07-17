@@ -7,6 +7,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.conf import settings
+from django.http import JsonResponse
 from .models import Inference, Input, Evaluation
 from PIL import Image
 
@@ -125,23 +126,90 @@ def inference_list(request):
 
 
 @login_required
+def inference_detail(request, inference_id):
+    """Return inference detail data as JSON"""
+    inference = get_object_or_404(Inference, pk=inference_id, requester=request.user)
+
+    inputs = [
+        {
+            "order": inp.order,
+            "input_type": inp.input_type,
+            "content": inp.content,
+            "image_url": inp.image.url if inp.image else None,
+        }
+        for inp in inference.inputs.all()
+    ]
+
+    evaluations = Evaluation.objects.filter(inference=inference)
+    eval_count = evaluations.count()
+    agreement_rate = (
+        round(sum(1 for e in evaluations if e.agreement) * 100 / eval_count, 2)
+        if eval_count
+        else 0
+    )
+    avg_quality = (
+        round(sum(e.quality for e in evaluations) / eval_count, 2)
+        if eval_count
+        else 0
+    )
+    user_has_evaluated = evaluations.filter(evaluator=request.user).exists()
+
+    data = {
+        "id": inference.id,
+        "created_at": inference.created_at.strftime("%Y-%m-%d %H:%M"),
+        "system_prompt": inference.system_prompt,
+        "gemini_result": inference.gemini_result,
+        "inputs": inputs,
+        "eval_count": eval_count,
+        "agreement_rate": agreement_rate,
+        "avg_quality": avg_quality,
+        "user_has_evaluated": user_has_evaluated,
+    }
+
+    return JsonResponse(data)
+
+
+@login_required
 def evaluation_page(request, inference_id):
     """평가 페이지"""
     inference = get_object_or_404(Inference, pk=inference_id, requester=request.user)
-    
+
     if request.method == "POST":
         score = request.POST.get("score")
         comment = request.POST.get("comment")
-        
+
         Evaluation.objects.create(
-            inference=inference, 
-            evaluator=request.user, 
-            score=score, 
-            comment=comment
+            inference=inference,
+            evaluator=request.user,
+            score=score,
+            comment=comment,
         )
         return redirect("reviews:inference_list")
 
-    return render(request, "reviews/evaluation_page.html", {"inference": inference})
+    evaluations = Evaluation.objects.filter(inference=inference)
+    eval_count = evaluations.count()
+    agreement_rate = (
+        round(sum(1 for e in evaluations if e.agreement) * 100 / eval_count, 2)
+        if eval_count
+        else 0
+    )
+    avg_quality = (
+        round(sum(e.quality for e in evaluations) / eval_count, 2)
+        if eval_count
+        else 0
+    )
+    user_has_evaluated = evaluations.filter(evaluator=request.user).exists()
+
+    context = {
+        "inference": inference,
+        "inference_id": inference.id,
+        "eval_count": eval_count,
+        "agreement_rate": agreement_rate,
+        "avg_quality": avg_quality,
+        "user_has_evaluated": user_has_evaluated,
+    }
+
+    return render(request, "reviews/evaluation_page.html", context)
 
 
 @login_required
