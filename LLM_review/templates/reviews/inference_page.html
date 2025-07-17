@@ -190,8 +190,18 @@
         if (!container) return;
         Array.from(container.children).forEach((child, index) => {
             const orderInput = child.querySelector('input[name^="input_order_"]');
-            if(orderInput) orderInput.value = index;
+            if(orderInput) {
+                orderInput.name = `input_order_${index}`;
+                orderInput.value = index;
+            }
+            const typeInput = child.querySelector('input[name^="input_type_"]');
+            if(typeInput) typeInput.name = `input_type_${index}`;
+            const contentInput = child.querySelector('textarea[name^="input_content_"]');
+            if(contentInput) contentInput.name = `input_content_${index}`;
+            const fileInput = child.querySelector('input[type="file"][name^="input_file_"]');
+            if(fileInput) fileInput.name = `input_file_${index}`;
         });
+        inputCounter = container.children.length;
     }
 
     function previewImage(event, id) {
