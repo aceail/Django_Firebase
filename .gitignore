@@ -1,2 +1,3 @@
 *.pyc
 *.sqlite3
+LLM_review/.env
