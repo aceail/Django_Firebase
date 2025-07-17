@@ -120,15 +120,18 @@ def run_inference(request):
 
 @login_required
 def inference_list(request):
-    """추론 목록 페이지"""
-    inferences = Inference.objects.filter(requester=request.user).order_by("-created_at")
+    """추론 목록 페이지
+
+    모든 사용자가 다른 사용자의 추론도 볼 수 있도록 전체 목록을 반환한다.
+    """
+    inferences = Inference.objects.all().order_by("-created_at")
     return render(request, "reviews/inference_list.html", {"inferences": inferences})
 
 
 @login_required
 def inference_detail(request, inference_id):
     """Return inference detail data as JSON"""
-    inference = get_object_or_404(Inference, pk=inference_id, requester=request.user)
+    inference = get_object_or_404(Inference, pk=inference_id)
 
     inputs = [
         {
@@ -172,7 +175,7 @@ def inference_detail(request, inference_id):
 @login_required
 def evaluation_page(request, inference_id):
     """평가 페이지"""
-    inference = get_object_or_404(Inference, pk=inference_id, requester=request.user)
+    inference = get_object_or_404(Inference, pk=inference_id)
 
     if request.method == "POST":
         Evaluation.objects.create(
@@ -213,7 +216,7 @@ def evaluation_page(request, inference_id):
 @login_required
 def submit_evaluation(request, inference_id):
     """평가 결과 저장 후 상세 페이지로 리다이렉트"""
-    inference = get_object_or_404(Inference, pk=inference_id, requester=request.user)
+    inference = get_object_or_404(Inference, pk=inference_id)
 
     if request.method == "POST":
         Evaluation.objects.create(
