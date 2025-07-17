@@ -73,12 +73,17 @@ def run_inference(request):
     )
 
     prompt_parts = []
+    text_added = False
     for item in input_items:
         if item["type"] == "text":
             prompt_parts.append(item["content"])
+            if item["content"].strip():
+                text_added = True
         elif item["type"] == "image" and item["file"]:
             try:
                 img = Image.open(item["file"])
+                if not text_added and not prompt_parts:
+                    prompt_parts.append("")
                 prompt_parts.append(img)
             except Exception as e:
                 logger.error(f"Error processing image file {item['file'].name}: {e}")
