@@ -17,6 +17,7 @@
         .star-rating label:hover ~ label { color: #f59e0b; }
         .thumbnail { max-height: 6rem; cursor: pointer; }
         #image-modal { display:none; }
+        #image-modal img { cursor: grab; max-width: none; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800">
@@ -34,8 +35,13 @@
     </header>
 
     <main class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div id="detail-container" class="md:col-span-2 bg-white p-6 rounded-2xl shadow">
-            <p class="text-gray-500 text-center">우측 목록에서 항목을 선택하세요.</p>
+        <div class="md:col-span-2 space-y-6">
+            <div id="eval-container" class="bg-white p-4 rounded-2xl shadow">
+                <p class="text-gray-500 text-center">우측 목록에서 항목을 선택하세요.</p>
+            </div>
+            <div id="detail-container" class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-6 rounded-2xl shadow">
+                <p class="text-gray-500 text-center md:col-span-2">항목을 선택하면 세부 정보가 표시됩니다.</p>
+            </div>
         </div>
         <div class="md:col-span-1">
             <ul id="inference-list" class="space-y-2">
@@ -87,7 +93,8 @@ document.querySelectorAll('.inference-item').forEach(btn => {
 });
 
 function showDetail(data) {
-    const container = document.getElementById('detail-container');
+    const detail = document.getElementById('detail-container');
+    const evalBox = document.getElementById('eval-container');
     let imgs = '';
     let texts = '';
     data.inputs.forEach(i => {
@@ -127,31 +134,33 @@ function showDetail(data) {
             <button type="submit" class="w-full bg-blue-600 text-white rounded py-2 hover:bg-blue-700">평가 제출</button>
         </form>`;
 
-    container.innerHTML = `
-        <h2 class="text-2xl font-bold mb-4">Inference #${data.id}</h2>
-        ${imgs ? `<div id="image-gallery" class="mb-4 flex flex-wrap">${imgs}</div>` : ''}
-        <div class="space-y-4">
-            <div>
-                <h3 class="font-semibold mb-1">System Prompt</h3>
-                <div class="prompt-box">${data.system_prompt || '(없음)'}</div>
-            </div>
-            <div>
-                <h3 class="font-semibold mb-1">User Inputs</h3>
-                ${texts || '<p class="text-sm text-gray-500">No inputs.</p>'}
-            </div>
-            <div>
-                <h3 class="font-semibold mb-1">Gemini Result</h3>
-                <div class="prompt-box bg-blue-50 border-blue-200">${data.gemini_result}</div>
+    evalBox.innerHTML = `
+        <h2 class="text-xl font-bold mb-4">Inference #${data.id}</h2>
+        ${evalForm}
+        <div id="eval-stats" class="text-sm space-y-1 mt-4 ${data.user_has_evaluated ? '' : 'hidden'}">
+            <div>총 평가자 수: <strong>${data.eval_count}</strong> 명</div>
+            <div>Agreement 비율: <strong>${data.agreement_rate}%</strong></div>
+            <div>평균 Quality: <strong>${data.avg_quality} / 5.0</strong></div>
+        </div>
+    `;
+
+    detail.innerHTML = `
+        <div>
+            ${imgs ? `<div id="image-gallery" class="mb-4 flex flex-wrap">${imgs}</div>` : ''}
+            <div class="space-y-4">
+                <div>
+                    <h3 class="font-semibold mb-1">System Prompt</h3>
+                    <div class="prompt-box">${data.system_prompt || '(없음)'}</div>
+                </div>
+                <div>
+                    <h3 class="font-semibold mb-1">User Inputs</h3>
+                    ${texts || '<p class="text-sm text-gray-500">No inputs.</p>'}
+                </div>
             </div>
         </div>
-        <div class="mt-6">
-            <h3 class="font-semibold mb-1">평가 현황</h3>
-            <div class="text-sm space-y-1 mb-4">
-                <div>총 평가자 수: <strong>${data.eval_count}</strong> 명</div>
-                <div>Agreement 비율: <strong>${data.agreement_rate}%</strong></div>
-                <div>평균 Quality: <strong>${data.avg_quality} / 5.0</strong></div>
-            </div>
-            ${evalForm}
+        <div>
+            <h3 class="font-semibold mb-1">Gemini Result</h3>
+            <div class="prompt-box bg-blue-50 border-blue-200">${data.gemini_result}</div>
         </div>
     `;
 
@@ -186,14 +195,65 @@ function showDetail(data) {
     }
 }
 
+let zoom = 1, posX = 0, posY = 0, dragging = false, startX = 0, startY = 0;
+const imageModal = document.getElementById('image-modal');
+const modalImg = imageModal.querySelector('img');
+
 function showImageModal(src) {
-    const modal = document.getElementById('image-modal');
-    modal.querySelector('img').src = src;
-    modal.style.display = 'flex';
+    zoom = 1; posX = 0; posY = 0; dragging = false;
+    modalImg.src = src;
+    modalImg.style.transform = 'translate(0,0) scale(1)';
+    imageModal.style.display = 'flex';
 }
 
-document.getElementById('image-modal').addEventListener('click', () => {
-    document.getElementById('image-modal').style.display = 'none';
+function hideImageModal() {
+    imageModal.style.display = 'none';
+}
+
+imageModal.addEventListener('wheel', e => {
+    e.preventDefault();
+    zoom += e.deltaY < 0 ? 0.1 : -0.1;
+    if (zoom < 0.1) zoom = 0.1;
+    modalImg.style.transform = `translate(${posX}px, ${posY}px) scale(${zoom})`;
+});
+
+modalImg.addEventListener('mousedown', e => {
+    if (e.button === 0) {
+        dragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        modalImg.style.cursor = 'grabbing';
+    }
+});
+
+imageModal.addEventListener('mousemove', e => {
+    if (dragging) {
+        posX += e.clientX - startX;
+        posY += e.clientY - startY;
+        startX = e.clientX;
+        startY = e.clientY;
+        modalImg.style.transform = `translate(${posX}px, ${posY}px) scale(${zoom})`;
+    }
+});
+
+window.addEventListener('mouseup', () => {
+    if (dragging) {
+        dragging = false;
+        modalImg.style.cursor = 'grab';
+    }
+});
+
+imageModal.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    hideImageModal();
+});
+
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') hideImageModal();
+});
+
+imageModal.addEventListener('click', e => {
+    if (e.target === imageModal) hideImageModal();
 });
 </script>
 </body>
