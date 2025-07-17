@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.1.0/github-markdown.min.css">
     <style>
         body { font-family: 'Noto Sans KR', sans-serif; }
-        .prompt-box { background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 0.5rem; border-radius: 0.5rem; white-space: pre-wrap; }
+        .prompt-box { background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 1rem; border-radius: 0.5rem; white-space: pre-wrap; }
         .star-rating input[type="radio"] { display: none; }
         .star-rating label { font-size: 1.5rem; color: #d1d5db; cursor: pointer; transition: color 0.2s; }
         .star-rating input[type="radio"]:checked ~ label,
@@ -114,10 +114,10 @@ function showDetail(data) {
             imgs += `<img src="${i.image_url}" data-full="${i.image_url}" class="thumbnail m-1 rounded border">`;
         }
         if (i.input_type === 'text') {
-            texts += `<div class="prompt-box mb-2"><span class="text-sm text-slate-500 font-bold">[${i.order}]</span> ${i.content}</div>`;
+            texts += `<div class="prompt-box mb-2"><div class="text-sm text-slate-500 font-bold mb-1">[${i.order}]</div><div class="markdown-body">${marked.parse(i.content)}</div></div>`;
         }
         if (i.input_type === 'image' && i.content) {
-            texts += `<div class="prompt-box mb-2"><span class="text-sm text-slate-500 font-bold">[${i.order}] (image)</span> ${i.content}</div>`;
+            texts += `<div class="prompt-box mb-2"><div class="text-sm text-slate-500 font-bold mb-1">[${i.order}] (image)</div><div class="markdown-body">${marked.parse(i.content)}</div></div>`;
         }
     });
 
@@ -164,7 +164,7 @@ function showDetail(data) {
         <div class="space-y-4">
             <div>
                 <h3 class="font-semibold mb-1">System Prompt</h3>
-                <div class="prompt-box">${data.system_prompt || '(없음)'}</div>
+                <div class="prompt-box"><div class="markdown-body">${data.system_prompt ? marked.parse(data.system_prompt) : '(없음)'}</div></div>
             </div>
             <div>
                 <h3 class="font-semibold mb-1">User Inputs</h3>
