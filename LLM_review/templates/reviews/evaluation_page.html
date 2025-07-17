@@ -20,7 +20,7 @@
     <!-- Left: Inference Details -->
     <div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-lg space-y-6">
         <div class="border-b pb-4">
-            <a href="{% url 'inference_list' %}" class="text-blue-600 hover:underline mb-4 inline-block"><i class="fas fa-arrow-left mr-2"></i>목록으로 돌아가기</a>
+            <a href="{% url 'reviews:inference_list' %}" class="text-blue-600 hover:underline mb-4 inline-block"><i class="fas fa-arrow-left mr-2"></i>목록으로 돌아가기</a>
             <h1 class="text-3xl font-bold text-slate-800">추론 결과 상세</h1>
             <p class="text-sm text-slate-500 mt-1">ID: {{ inference_id }}</p>
         </div>
@@ -78,7 +78,7 @@
                     <p class="text-sm text-green-800">이미 이 항목을 평가했습니다.</p>
                 </div>
             {% else %}
-            <form action="{% url 'submit_evaluation' inference_id=inference_id %}" method="POST">
+            <form action="{% url 'reviews:submit_evaluation' inference_id=inference_id %}" method="POST">
                 {% csrf_token %}
                 <div class="space-y-6">
                     <div>

@@ -1,6 +1,8 @@
 from django.urls import path
 from . import views
 
+app_name = "reviews"
+
 urlpatterns = [
     # 신규 추가: 로그인 후 첫 진입 페이지
     path('', views.root_view, name='root'),
