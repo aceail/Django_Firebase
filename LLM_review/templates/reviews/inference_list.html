@@ -196,13 +196,6 @@ function showDetail(data) {
             toggleBtn.textContent = '접기';
         }
     });
-        </div>
-    `;
-
-    detailResult.innerHTML = `
-        <h3 class="font-semibold mb-1">Gemini Result</h3>
-        <div class="prompt-box bg-blue-50 border-blue-200">${data.gemini_result}</div>
-    `;
 
     document.querySelectorAll('#image-gallery img.thumbnail').forEach(img => {
         img.addEventListener('click', () => showImageModal(img.dataset.full));
