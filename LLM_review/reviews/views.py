@@ -104,7 +104,7 @@ def run_inference(request):
             )
 
         messages.success(request, "추론이 완료되었습니다.")
-            return redirect("reviews:inference_list")
+        return redirect("reviews:inference_list")
 
     except genai.types.generation_types.StopCandidateException:
         inference.delete()
