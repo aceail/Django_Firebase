@@ -21,6 +21,13 @@ except AttributeError:
     # 예를 들어, API 기능을 비활성화하거나 에러 페이지를 보여줄 수 있습니다.
 
 @login_required
+def root_view(request):
+    """사용자 유형에 따른 초기 리다이렉션"""
+    if request.user.is_staff:
+        return redirect("inference_page")
+    return redirect("inference_list")
+
+@login_required
 def inference_page(request):
     """추론 생성 페이지 렌더링"""
     return render(request, "reviews/inference_page.html")
@@ -114,3 +121,19 @@ def evaluation_page(request, inference_id):
         return redirect("reviews:inference_list")
 
     return render(request, "reviews/evaluation_page.html", {"inference": inference})
+
+
+@login_required
+def submit_evaluation(request, inference_id):
+    """평가 결과 저장 후 상세 페이지로 리다이렉트"""
+    inference = get_object_or_404(Inference, pk=inference_id, requester=request.user)
+
+    if request.method == "POST":
+        Evaluation.objects.create(
+            inference=inference,
+            evaluator=request.user,
+            score=request.POST.get("score"),
+            comment=request.POST.get("comment", ""),
+        )
+
+    return redirect("evaluation_page", inference_id=inference.id)
