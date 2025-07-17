@@ -58,6 +58,7 @@
                     <button data-id="{{ inference.id }}" class="inference-item flex-1 text-left p-3 bg-white rounded-lg shadow hover:bg-blue-50">
                         <span class="font-semibold">#{{ inference.id }}</span>
                         <span class="ml-2 text-sm text-gray-500">{{ inference.created_at|date:"m/d H:i" }}</span>
+                        <span class="ml-2 text-xs text-gray-400">{{ inference.requester.username }}</span>
                     </button>
                     <a href="{% url 'reviews:evaluation_page' inference.id %}" class="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm whitespace-nowrap hover:bg-blue-700">평가</a>
                 </li>
