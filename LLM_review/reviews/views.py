@@ -5,6 +5,7 @@ import google.generativeai as genai
 import logging
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from django.conf import settings
 from .models import Inference, Input, Evaluation
 from PIL import Image
@@ -35,65 +36,85 @@ def inference_page(request):
 @login_required
 def run_inference(request):
     """멀티모달 입력을 받아 추론을 실행하고 결과를 저장"""
-    if request.method != "POST":
-        return redirect("reviews:inference_page")
+    if request.method != "POST" or not request.user.is_staff:
+        messages.error(request, "잘못된 접근입니다.")
+        return redirect("inference_page")
 
-    text_prompt = request.POST.get("text_input", "")
-    image_parts = []
-    
-    # 여러 이미지 파일 처리
-    if 'image_input' in request.FILES:
-        for file in request.FILES.getlist('image_input'):
+    system_prompt = request.POST.get("system_prompt", "")
+    parameters = {
+        "temperature": float(request.POST.get("temperature", 0.7)),
+        "top_p": float(request.POST.get("top_p", 1.0)),
+        "max_output_tokens": int(request.POST.get("max_output_tokens", 2048)),
+    }
+
+    input_items = []
+    i = 0
+    while f"input_type_{i}" in request.POST:
+        input_items.append({
+            "order": int(request.POST.get(f"input_order_{i}", i)),
+            "type": request.POST.get(f"input_type_{i}"),
+            "content": request.POST.get(f"input_content_{i}", ""),
+            "file": request.FILES.get(f"input_file_{i}"),
+        })
+        i += 1
+
+    if not input_items:
+        messages.error(request, "텍스트나 이미지를 하나 이상 입력해야 합니다.")
+        return redirect("inference_page")
+
+    input_items.sort(key=lambda x: x["order"])
+
+    inference = Inference.objects.create(
+        requester=request.user,
+        system_prompt=system_prompt,
+        parameters=parameters,
+        gemini_result="",
+    )
+
+    prompt_parts = []
+    for item in input_items:
+        if item["type"] == "text":
+            prompt_parts.append(item["content"])
+        elif item["type"] == "image" and item["file"]:
             try:
-                img = Image.open(file)
-                image_parts.append(img)
+                img = Image.open(item["file"])
+                prompt_parts.append(img)
             except Exception as e:
-                logger.error(f"Error processing image file {file.name}: {e}")
-                # 사용자에게 이미지 파일 오류 알림
-                return render(request, "reviews/inference_page.html", {"error": f"이미지 파일 처리 중 오류가 발생했습니다: {file.name}"})
-
-    # 입력값이 모두 없는 경우
-    if not text_prompt and not image_parts:
-        return render(request, "reviews/inference_page.html", {"error": "텍스트 또는 이미지를 하나 이상 입력해야 합니다."})
-
-    # Inference 객체 생성
-    inference = Inference.objects.create(requester=request.user)
+                logger.error(f"Error processing image file {item['file'].name}: {e}")
+                inference.delete()
+                messages.error(request, f"이미지 처리 중 오류가 발생했습니다: {item['file'].name}")
+                return redirect("inference_page")
+            if item["content"]:
+                prompt_parts.append(item["content"])
 
     try:
-        # 모델 설정 (나중에 선택 가능하도록 확장 가능)
-        # 하드코딩된 모델 이름 대신 설정 파일이나 DB에서 가져올 수 있습니다.
-        model_name = 'gemini-1.5-pro-latest'
-        model = genai.GenerativeModel(model_name)
-        
-        # API에 전달할 입력 준비
-        prompt_parts = [text_prompt] + image_parts
-        
-        # API 호출
+        model = genai.GenerativeModel("gemini-1.5-pro-latest")
         response = model.generate_content(prompt_parts, stream=False)
-        
-        # 결과 저장
-        inference.response_text = response.text
-        inference.model_name = model_name
-        inference.is_complete = True
+
+        inference.gemini_result = response.text
         inference.save()
 
-        # Input 객체 저장
-        Input.objects.create(
-            inference=inference,
-            text_input=text_prompt,
-            # 이미지 저장은 필요 시 파일 필드를 모델에 추가하여 구현
-        )
+        for item in input_items:
+            Input.objects.create(
+                inference=inference,
+                order=item["order"],
+                input_type=item["type"],
+                content=item["content"],
+                image=item["file"] if item["type"] == "image" else None,
+            )
 
-        return redirect("reviews:inference_list")
+        messages.success(request, "추론이 완료되었습니다.")
+        return redirect("inference_list")
 
-    except genai.types.generation_types.StopCandidateException as e:
-        logger.warning(f"Inference stopped for safety reasons: {e} for user {request.user.username}")
-        inference.delete() # 실패한 추론 객체 삭제
-        return render(request, "reviews/inference_page.html", {"error": "생성된 콘텐츠가 안전하지 않아 요청이 중단되었습니다."})
+    except genai.types.generation_types.StopCandidateException:
+        inference.delete()
+        messages.error(request, "생성된 콘텐츠가 안전하지 않아 요청이 중단되었습니다.")
+        return redirect("inference_page")
     except Exception as e:
-        logger.error(f"An unexpected error occurred during inference for user {request.user.username}: {e}", exc_info=True)
-        inference.delete() # 실패한 추론 객체 삭제
-        return render(request, "reviews/inference_page.html", {"error": "알 수 없는 오류가 발생하여 추론에 실패했습니다. 잠시 후 다시 시도해주세요."})
+        logger.error(f"Unexpected error during inference for user {request.user.username}: {e}", exc_info=True)
+        inference.delete()
+        messages.error(request, "알 수 없는 오류가 발생하여 추론에 실패했습니다.")
+        return redirect("inference_page")
 
 
 @login_required
