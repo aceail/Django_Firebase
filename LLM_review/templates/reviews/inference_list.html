@@ -12,7 +12,7 @@
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800">
-<div class="container mx-auto max-w-5xl p-4 sm:p-6 lg:p-8">
+<div class="container mx-auto max-w-6xl p-4 sm:p-6 lg:p-8">
     <header class="flex justify-between items-center mb-8">
         <h1 class="text-4xl font-bold text-blue-600">Inference List</h1>
         {% if user.is_authenticated %}
@@ -25,48 +25,68 @@
         {% endif %}
     </header>
 
-    <main>
-        <div class="relative overflow-x-auto shadow-md sm:rounded-lg">
-            <table class="w-full text-sm text-left rtl:text-right text-gray-500">
-                <thead class="text-xs text-gray-700 uppercase bg-gray-50">
-                    <tr>
-                        <th scope="col" class="px-6 py-3">ID</th>
-                        <th scope="col" class="px-6 py-3">Requester</th>
-                        <th scope="col" class="px-6 py-3">Created At</th>
-                        <th scope="col" class="px-6 py-3">Model</th>
-                        <th scope="col" class="px-6 py-3">Status</th>
-                        <th scope="col" class="px-6 py-3">Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for inference in inferences %}
-                    <tr class="bg-white border-b hover:bg-gray-50">
-                        <th scope="row" class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">
-                            {{ inference.id }}
-                        </th>
-                        <td class="px-6 py-4">{{ inference.requester.username }}</td>
-                        <td class="px-6 py-4">{{ inference.created_at|date:"Y-m-d H:i" }}</td>
-                        <td class="px-6 py-4">{{ inference.model_name|default:"N/A" }}</td>
-                        <td class="px-6 py-4">
-                            {% if inference.is_complete %}
-                                <span class="bg-green-100 text-green-800 text-xs font-medium me-2 px-2.5 py-0.5 rounded">Complete</span>
-                            {% else %}
-                                <span class="bg-yellow-100 text-yellow-800 text-xs font-medium me-2 px-2.5 py-0.5 rounded">In Progress</span>
-                            {% endif %}
-                        </td>
-                        <td class="px-6 py-4">
-                            <a href="{% url 'reviews:evaluation_page' inference.id %}" class="font-medium text-blue-600 hover:underline">Evaluate</a>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="6" class="px-6 py-4 text-center">No inferences found.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    <main class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="md:col-span-1">
+            <ul id="inference-list" class="space-y-2">
+                {% for inference in inferences %}
+                <li>
+                    <button data-id="{{ inference.id }}" class="inference-item w-full text-left p-3 bg-white rounded-lg shadow hover:bg-blue-50">
+                        <span class="font-semibold">#{{ inference.id }}</span>
+                        <span class="ml-2 text-sm text-gray-500">{{ inference.created_at|date:"m/d H:i" }}</span>
+                    </button>
+                </li>
+                {% empty %}
+                <li class="text-center text-gray-500">No inferences found.</li>
+                {% endfor %}
+            </ul>
+        </div>
+        <div id="detail-container" class="md:col-span-2 bg-white p-6 rounded-2xl shadow">
+            <p class="text-gray-500 text-center">좌측 목록에서 항목을 선택하세요.</p>
         </div>
     </main>
 </div>
+<script>
+const detailUrlTemplate = "{% url 'reviews:inference_detail' 0 %}";
+const evalUrlTemplate = "{% url 'reviews:evaluation_page' 0 %}";
+
+document.querySelectorAll('.inference-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const id = btn.dataset.id;
+        fetch(detailUrlTemplate.replace('0', id))
+            .then(res => res.json())
+            .then(data => showDetail(data));
+    });
+});
+
+function showDetail(data) {
+    const container = document.getElementById('detail-container');
+    let inputsHtml = '';
+    data.inputs.forEach(i => {
+        if (i.input_type === 'text') {
+            inputsHtml += `<div class="mb-2 p-2 border rounded"><span class="text-sm text-slate-500">[${i.order}]</span> ${i.content}</div>`;
+        } else if (i.image_url) {
+            inputsHtml += `<div class="mb-2 p-2 border rounded"><span class="text-sm text-slate-500">[${i.order}] image</span><br><img src="${i.image_url}" class="my-2 max-w-xs rounded"><p>${i.content}</p></div>`;
+        }
+    });
+    container.innerHTML = `
+        <h2 class="text-2xl font-bold mb-4">Inference #${data.id}</h2>
+        <div class="space-y-4">
+            <div>
+                <h3 class="font-semibold mb-1">System Prompt</h3>
+                <div class="p-2 bg-slate-50 border rounded whitespace-pre-wrap">${data.system_prompt || '(없음)'}</div>
+            </div>
+            <div>
+                <h3 class="font-semibold mb-1">User Inputs</h3>
+                ${inputsHtml || '<p class="text-sm text-gray-500">No inputs.</p>'}
+            </div>
+            <div>
+                <h3 class="font-semibold mb-1">Gemini Result</h3>
+                <div class="p-2 bg-blue-50 border-blue-200 border rounded whitespace-pre-wrap">${data.gemini_result}</div>
+            </div>
+            <a class="text-blue-600 hover:underline font-medium" href="${evalUrlTemplate.replace('0', data.id)}">평가 페이지로 이동</a>
+        </div>
+    `;
+}
+</script>
 </body>
 </html>
