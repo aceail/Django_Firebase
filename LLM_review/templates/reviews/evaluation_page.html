@@ -34,6 +34,7 @@
             border-radius: 0.5rem;
             box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
         }
+
         .evaluation-box .form-label { margin-bottom: 0.25rem; font-weight: bold; font-size: 0.9rem; }
         .rating-stars { cursor: pointer; color: #ccc; }
         .rating-stars .fa-star:hover, .rating-stars .fa-star.selected { color: #ffc107; }
@@ -55,6 +56,7 @@
                             {{ inference.system_prompt|default:"(없음)" }}
                         </div>
                     </div>
+
                 </div>
                 <div class="accordion-item">
                     <h2 class="accordion-header">
@@ -131,6 +133,7 @@
             let parent = this.parentElement;
             parent.querySelectorAll('.fa-star').forEach(s => s.classList.remove('selected'));
             this.classList.add('selected');
+
         });
     });
 </script>
