@@ -206,6 +206,9 @@ def evaluation_page(request, inference_id):
     )
     user_has_evaluated = evaluations.filter(evaluator=request.user).exists()
 
+    # 평가 페이지 우측 목록 표시를 위한 전체 추론 목록
+    inferences = Inference.objects.all().order_by('-created_at')
+
     context = {
         "inference": inference,
         "inference_id": inference.id,
@@ -213,6 +216,7 @@ def evaluation_page(request, inference_id):
         "agreement_rate": agreement_rate,
         "avg_quality": avg_quality,
         "user_has_evaluated": user_has_evaluated,
+        "inferences": inferences,
     }
 
     return render(request, "reviews/evaluation_page.html", context)
