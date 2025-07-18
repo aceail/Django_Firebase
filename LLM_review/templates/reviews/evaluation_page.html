@@ -10,9 +10,30 @@
         body { background-color: #f0f2f5; }
         .card { border: none; box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24); }
         .accordion-button:not(.collapsed) { background-color: #e7f1ff; color: #0c63e4; }
-        .json-key { font-weight: bold; color: #555; width: 25%; }
-        .list-group-item.active { background-color: #0d6efd; border-color: #0d6efd; }
-        .evaluation-box { display: flex; align-items: center; gap: 1.5rem; background-color: #fff; padding: 1rem; border-radius: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24); }
+
+        /* LLM 결과 JSON을 테이블로 표시 */
+        .json-key {
+            font-weight: bold;
+            color: #555;
+            width: 25%; /* 키(key) 영역 너비 */
+        }
+
+        /* 오른쪽 추론 목록 활성 아이템 스타일 */
+        .list-group-item.active {
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+        }
+
+        /* 평가 영역 스타일 */
+        .evaluation-box {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem; /* 각 평가 요소 사이의 간격 */
+            background-color: #fff;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+        }
         .evaluation-box .form-label { margin-bottom: 0.25rem; font-weight: bold; font-size: 0.9rem; }
         .rating-stars { cursor: pointer; color: #ccc; }
         .rating-stars .fa-star:hover, .rating-stars .fa-star.selected { color: #ffc107; }
@@ -57,58 +78,35 @@
                 </div>
             </div>
             <div class="card mb-3">
-                <div class="card-header fw-bold">Gemini Result</div>
+                <div class="card-header fw-bold">LLM Result</div>
                 <div class="card-body">
                     <pre class="mb-0">{{ inference.gemini_result }}</pre>
                 </div>
             </div>
-            <div class="card mb-3">
-                <div class="card-header fw-bold">평가 현황</div>
-                <div class="card-body">
-                    <p class="mb-1">총 평가자 수: <strong>{{ eval_count }} 명</strong></p>
-                    <p class="mb-1">Agreement 비율: <strong>{{ agreement_rate }} %</strong></p>
-                    <p class="mb-1">평균 Quality: <strong>{{ avg_quality }} / 5.0</strong></p>
+
+            <div class="evaluation-box">
+                <div>
+                    <label class="form-label">Agreement</label>
+                    <div class="btn-group" role="group">
+                        <input type="radio" class="btn-check" name="agreement" id="agreement-o" autocomplete="off">
+                        <label class="btn btn-outline-success" for="agreement-o">O</label>
+
+                        <input type="radio" class="btn-check" name="agreement" id="agreement-x" autocomplete="off">
+                        <label class="btn btn-outline-danger" for="agreement-x">X</label>
+                    </div>
                 </div>
-            </div>
-            <div class="card mb-3">
-                <div class="card-header fw-bold">나의 평가</div>
-                <div class="card-body">
-                    {% if user.is_staff %}
-                        <div class="alert alert-warning mb-0">관리자는 평가할 수 없습니다.</div>
-                    {% elif user_has_evaluated %}
-                        <div class="alert alert-success mb-0">이미 이 항목을 평가했습니다.</div>
-                    {% else %}
-                    <form action="{% url 'reviews:submit_evaluation' inference_id=inference_id %}" method="POST" class="evaluation-box flex-wrap">
-                        {% csrf_token %}
-                        <div>
-                            <label class="form-label">Agreement</label>
-                            <div class="btn-group" role="group">
-                                <input type="radio" class="btn-check" name="agreement" id="agreement-o" value="true" autocomplete="off" required>
-                                <label class="btn btn-outline-success" for="agreement-o">O</label>
-                                <input type="radio" class="btn-check" name="agreement" id="agreement-x" value="false" autocomplete="off">
-                                <label class="btn btn-outline-danger" for="agreement-x">X</label>
-                            </div>
-                        </div>
-                        <div>
-                            <label class="form-label">Quality</label>
-                            <div class="rating-stars h4 m-0">
-                                <i class="fa-solid fa-star" data-value="1"></i>
-                                <i class="fa-solid fa-star" data-value="2"></i>
-                                <i class="fa-solid fa-star" data-value="3"></i>
-                                <i class="fa-solid fa-star" data-value="4"></i>
-                                <i class="fa-solid fa-star" data-value="5"></i>
-                            </div>
-                            <input type="hidden" name="quality" id="quality-input" required>
-                        </div>
-                        <div class="flex-grow-1">
-                            <label class="form-label">Comment</label>
-                            <input type="text" name="comment" class="form-control" placeholder="Comment">
-                        </div>
-                        <div class="align-self-end">
-                            <button type="submit" class="btn btn-primary">Submit</button>
-                        </div>
-                    </form>
-                    {% endif %}
+                <div>
+                    <label class="form-label">Quality</label>
+                    <div class="rating-stars h4 m-0">
+                        <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i>
+                    </div>
+                </div>
+                <div class="flex-grow-1">
+                    <label class="form-label">Comment</label>
+                    <input type="text" class="form-control" placeholder="Comment">
+                </div>
+                <div>
+                    <label class="form-label d-block" style="opacity: 0;">.</label> <button type="submit" class="btn btn-primary">Submit</button>
                 </div>
             </div>
         </main>
@@ -133,7 +131,6 @@
             let parent = this.parentElement;
             parent.querySelectorAll('.fa-star').forEach(s => s.classList.remove('selected'));
             this.classList.add('selected');
-            document.getElementById('quality-input').value = this.getAttribute('data-value');
         });
     });
 </script>
